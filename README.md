@@ -1,6 +1,6 @@
 # InterviewPro AI Backend
 
-Backend server for the InterviewPro AI iOS app. Provides interview coaching via Claude AI and natural text-to-speech via OpenAI.
+Backend server for the InterviewPro AI iOS app. 100% powered by OpenAI - GPT-4o for interview AI and TTS for natural voice synthesis.
 
 ## Architecture Overview
 
@@ -23,8 +23,7 @@ Backend server for the InterviewPro AI iOS app. Provides interview coaching via 
 │           └────────────────────┼────────────────────┘            │
 │                                ▼                                 │
 │                    ┌───────────────────────┐                     │
-│                    │     Claude API        │                     │
-│                    │   (Anthropic)         │                     │
+│                    │     OpenAI GPT-4o     │                     │
 │                    │                       │                     │
 │                    │ • Interview questions │                     │
 │                    │ • Feedback & scoring  │                     │
@@ -98,14 +97,12 @@ npm install
 Create a `.env` file or set these in your hosting platform:
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxx
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 PORT=3000
 ```
 
-**Get API Keys:**
-- Anthropic (Claude): https://console.anthropic.com/
-- OpenAI (TTS): https://platform.openai.com/api-keys
+**Get API Key:**
+- OpenAI: https://platform.openai.com/api-keys
 
 ### 3. Run Locally
 
@@ -153,7 +150,6 @@ In Render Dashboard → Environment:
 
 | Key | Value |
 |-----|-------|
-| `ANTHROPIC_API_KEY` | `sk-ant-xxxx...` |
 | `OPENAI_API_KEY` | `sk-xxxx...` |
 | `NODE_ENV` | `production` |
 
@@ -182,11 +178,11 @@ private let baseURL = "https://interviewpro-backend-xxxx.onrender.com"
 
 ## Cost Estimation
 
-### Claude API (Anthropic)
+### OpenAI GPT-4o (Chat/Interview AI)
 
-- **Model:** claude-sonnet-4-20250514
-- **Cost:** ~$3 per million input tokens, ~$15 per million output tokens
-- **Per interview (10 exchanges):** ~$0.05 - $0.10
+- **Model:** gpt-4o
+- **Cost:** ~$2.50 per million input tokens, ~$10 per million output tokens
+- **Per interview (10 exchanges):** ~$0.03 - $0.08
 
 ### OpenAI TTS
 
@@ -198,9 +194,9 @@ private let baseURL = "https://interviewpro-backend-xxxx.onrender.com"
 
 | Service | Usage | Cost |
 |---------|-------|------|
-| Claude | 5,000 interviews | ~$300 |
+| GPT-4o | 5,000 interviews | ~$250 |
 | OpenAI TTS | 5,000 interviews | ~$2,500 |
-| **Total** | | ~$2,800/month |
+| **Total** | | ~$2,750/month |
 
 **Tip:** Consider caching common responses or using `tts-1` (standard) instead of `tts-1-hd` to reduce costs.
 
