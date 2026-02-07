@@ -89,6 +89,11 @@ app.get('/', (req, res) => {
     });
 });
 
+// Render health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
 // ============================================
 // INTERVIEW PROMPTS
 // ============================================
