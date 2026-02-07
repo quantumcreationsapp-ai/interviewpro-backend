@@ -3,13 +3,12 @@
  * InterviewPro AI - Backend Server
  * ============================================
  *
- * This server provides:
- * 1. Interview AI endpoints (powered by Claude)
- * 2. Text-to-Speech endpoint (powered by OpenAI)
+ * 100% OpenAI powered:
+ * - GPT-4 for interview AI
+ * - TTS for natural voice
  *
  * ENVIRONMENT VARIABLES REQUIRED:
- * - ANTHROPIC_API_KEY: Your Claude API key
- * - OPENAI_API_KEY: Your OpenAI API key (for TTS)
+ * - OPENAI_API_KEY: Your OpenAI API key
  * - PORT: Server port (default: 3000)
  *
  * ============================================
@@ -19,7 +18,6 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 
 const app = express();
@@ -29,50 +27,36 @@ const PORT = process.env.PORT || 3000;
 // VALIDATE ENVIRONMENT VARIABLES
 // ============================================
 
-if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('ERROR: ANTHROPIC_API_KEY environment variable is required');
+if (!process.env.OPENAI_API_KEY) {
+    console.error('ERROR: OPENAI_API_KEY environment variable is required');
     process.exit(1);
 }
 
-// OpenAI is optional - TTS will fail gracefully if not configured
-if (!process.env.OPENAI_API_KEY) {
-    console.warn('WARNING: OPENAI_API_KEY not set. TTS endpoint will be disabled.');
-}
-
 // ============================================
-// INITIALIZE AI CLIENTS
+// INITIALIZE OPENAI CLIENT
 // ============================================
 
-const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
 });
-
-const openai = process.env.OPENAI_API_KEY
-    ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-    : null;
 
 // ============================================
 // MIDDLEWARE SETUP
 // ============================================
 
-// Security headers
 app.use(helmet());
-
-// CORS - allow all origins for mobile app
 app.use(cors());
-
-// Parse JSON
 app.use(express.json({ limit: '1mb' }));
 
 // Rate limiting
 const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000,
     max: 100,
     message: { error: 'Too many requests, please try again later.' }
 });
 
 const aiLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
+    windowMs: 60 * 1000,
     max: 20,
     message: { error: 'Too many AI requests, please try again later.' }
 });
@@ -81,7 +65,7 @@ app.use('/api', apiLimiter);
 
 // Request timeout
 app.use((req, res, next) => {
-    req.setTimeout(120000); // 2 minutes
+    req.setTimeout(120000);
     next();
 });
 
@@ -99,12 +83,9 @@ app.get('/', (req, res) => {
     res.json({
         status: 'ok',
         message: 'InterviewPro AI API is running',
-        version: '1.0.0',
-        endpoints: {
-            interview: ['/api/real-interview', '/api/mock-interview', '/api/quick-answer'],
-            tts: '/api/tts'
-        },
-        ttsEnabled: !!openai
+        version: '2.0.0',
+        poweredBy: 'OpenAI GPT-4 + TTS',
+        endpoints: ['/api/real-interview', '/api/mock-interview', '/api/quick-answer', '/api/tts']
     });
 });
 
@@ -153,7 +134,7 @@ const MOCK_INTERVIEW_PROMPT = `You are a friendly AI interview coach having a pr
 4. Answer their questions about interviewing
 5. Be supportive and encouraging
 
-Keep your responses conversational and helpful. You can ask follow-up questions, provide tips, or give them another question to practice. Be warm and supportive - this is practice, not a real interview.`;
+Keep your responses conversational and helpful. Be warm and supportive - this is practice, not a real interview.`;
 
 const QUICK_ANSWER_PROMPT = `You are an expert interview coach. Provide a comprehensive, well-structured answer to the interview question. Include:
 
@@ -162,15 +143,14 @@ const QUICK_ANSWER_PROMPT = `You are an expert interview coach. Provide a compre
 3. Key points to emphasize
 4. Tips for delivery
 
-Keep the answer practical and actionable. Format it clearly so it's easy to read and remember.`;
+Keep the answer practical and actionable.`;
 
 // ============================================
-// INTERVIEW ENDPOINTS
+// INTERVIEW ENDPOINTS (Using GPT-4)
 // ============================================
 
 /**
  * Real Interview Mode
- * Formal interview with scoring and feedback
  */
 app.post('/api/real-interview', aiLimiter, async (req, res) => {
     try {
@@ -188,28 +168,33 @@ Context:
 - Experience Level: ${experienceLevel || 'Mid-level'}
 - Interview Type: ${interviewType || 'Behavioral and Technical'}`;
 
-        // Convert messages to Claude format
-        const claudeMessages = (messages || []).map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content: msg.content
-        }));
+        // Convert messages to OpenAI format
+        const openaiMessages = [
+            { role: 'system', content: systemPrompt }
+        ];
 
-        // If no messages, start the interview
-        if (claudeMessages.length === 0) {
-            claudeMessages.push({
+        if (messages && messages.length > 0) {
+            messages.forEach(msg => {
+                openaiMessages.push({
+                    role: msg.role === 'user' ? 'user' : 'assistant',
+                    content: msg.content
+                });
+            });
+        } else {
+            openaiMessages.push({
                 role: 'user',
                 content: 'Please start the interview.'
             });
         }
 
-        const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-20250514',
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: openaiMessages,
             max_tokens: 1024,
-            system: systemPrompt,
-            messages: claudeMessages
+            temperature: 0.7
         });
 
-        const aiMessage = response.content[0].text;
+        const aiMessage = response.choices[0].message.content;
         const containsFeedback = aiMessage.includes('---FEEDBACK_START---');
 
         res.json({
@@ -217,8 +202,8 @@ Context:
             message: aiMessage,
             containsFeedback,
             usage: {
-                input_tokens: response.usage.input_tokens,
-                output_tokens: response.usage.output_tokens
+                input_tokens: response.usage.prompt_tokens,
+                output_tokens: response.usage.completion_tokens
             }
         });
 
@@ -233,7 +218,6 @@ Context:
 
 /**
  * Mock Interview Mode
- * Casual practice with AI coach
  */
 app.post('/api/mock-interview', aiLimiter, async (req, res) => {
     try {
@@ -250,24 +234,32 @@ Context:
 - Industry: ${industry || 'General'}
 - Experience Level: ${experienceLevel || 'Mid-level'}`;
 
-        const claudeMessages = (messages || []).map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content: msg.content
-        }));
+        const openaiMessages = [
+            { role: 'system', content: systemPrompt }
+        ];
 
-        const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-20250514',
+        if (messages && messages.length > 0) {
+            messages.forEach(msg => {
+                openaiMessages.push({
+                    role: msg.role === 'user' ? 'user' : 'assistant',
+                    content: msg.content
+                });
+            });
+        }
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: openaiMessages,
             max_tokens: 1024,
-            system: systemPrompt,
-            messages: claudeMessages
+            temperature: 0.7
         });
 
         res.json({
             success: true,
-            message: response.content[0].text,
+            message: response.choices[0].message.content,
             usage: {
-                input_tokens: response.usage.input_tokens,
-                output_tokens: response.usage.output_tokens
+                input_tokens: response.usage.prompt_tokens,
+                output_tokens: response.usage.completion_tokens
             }
         });
 
@@ -282,7 +274,6 @@ Context:
 
 /**
  * Quick Answer Mode
- * Get instant answer to any interview question
  */
 app.post('/api/quick-answer', aiLimiter, async (req, res) => {
     try {
@@ -298,22 +289,22 @@ Context:
 - Job Title: ${jobTitle || 'Professional'}
 - Industry: ${industry || 'General'}`;
 
-        const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-20250514',
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `How should I answer this interview question: "${question}"` }
+            ],
             max_tokens: 1024,
-            system: systemPrompt,
-            messages: [{
-                role: 'user',
-                content: `How should I answer this interview question: "${question}"`
-            }]
+            temperature: 0.7
         });
 
         res.json({
             success: true,
-            answer: response.content[0].text,
+            answer: response.choices[0].message.content,
             usage: {
-                input_tokens: response.usage.input_tokens,
-                output_tokens: response.usage.output_tokens
+                input_tokens: response.usage.prompt_tokens,
+                output_tokens: response.usage.completion_tokens
             }
         });
 
@@ -327,16 +318,11 @@ Context:
 });
 
 // ============================================
-// TEXT-TO-SPEECH ENDPOINT (OpenAI)
+// TEXT-TO-SPEECH ENDPOINT (OpenAI TTS)
 // ============================================
 
 /**
- * TTS Endpoint
- * Converts text to natural speech using OpenAI
- *
- * POST /api/tts
- * Body: { text: "Hello world", voice: "nova" }
- * Returns: audio/mpeg binary
+ * TTS Endpoint - Natural voice synthesis
  *
  * Available voices:
  * - nova: Female, warm and friendly (recommended)
@@ -348,47 +334,32 @@ Context:
  */
 app.post('/api/tts', async (req, res) => {
     try {
-        // Check if OpenAI is configured
-        if (!openai) {
-            return res.status(503).json({
-                error: 'TTS service not configured',
-                details: 'OPENAI_API_KEY environment variable not set'
-            });
-        }
-
         const { text, voice = 'nova' } = req.body;
 
         if (!text) {
             return res.status(400).json({ error: 'Text is required' });
         }
 
-        // Validate voice
         const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
         const selectedVoice = validVoices.includes(voice) ? voice : 'nova';
 
-        // Limit text length (OpenAI limit is 4096 chars)
-        const maxLength = 4096;
-        const truncatedText = text.length > maxLength
-            ? text.substring(0, maxLength)
-            : text;
+        // Limit text length (max 4096 chars)
+        const truncatedText = text.length > 4096 ? text.substring(0, 4096) : text;
 
-        console.log(`TTS Request: ${truncatedText.length} chars, voice: ${selectedVoice}`);
+        console.log(`TTS: ${truncatedText.length} chars, voice: ${selectedVoice}`);
 
-        // Generate speech
         const mp3Response = await openai.audio.speech.create({
-            model: 'tts-1',           // Use 'tts-1-hd' for higher quality (2x cost)
+            model: 'tts-1',
             voice: selectedVoice,
             input: truncatedText,
             response_format: 'mp3',
-            speed: 1.0                 // 0.25 to 4.0
+            speed: 1.0
         });
 
-        // Get audio buffer
         const audioBuffer = Buffer.from(await mp3Response.arrayBuffer());
 
         console.log(`TTS Response: ${audioBuffer.length} bytes`);
 
-        // Send audio
         res.set({
             'Content-Type': 'audio/mpeg',
             'Content-Length': audioBuffer.length,
@@ -413,8 +384,7 @@ app.post('/api/tts', async (req, res) => {
 app.use((err, req, res, next) => {
     console.error('Unhandled Error:', err);
     res.status(500).json({
-        error: 'Internal server error',
-        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+        error: 'Internal server error'
     });
 });
 
@@ -425,8 +395,9 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`
 ╔════════════════════════════════════════════╗
-║       InterviewPro AI Backend              ║
+║       InterviewPro AI Backend v2.0         ║
 ╠════════════════════════════════════════════╣
+║  Powered by OpenAI (GPT-4o + TTS)          ║
 ║  Server running on port ${PORT}               ║
 ║                                            ║
 ║  Endpoints:                                ║
@@ -434,8 +405,6 @@ app.listen(PORT, () => {
 ║  • POST /api/mock-interview                ║
 ║  • POST /api/quick-answer                  ║
 ║  • POST /api/tts                           ║
-║                                            ║
-║  TTS Enabled: ${openai ? 'Yes ✓' : 'No ✗ (set OPENAI_API_KEY)'}              ║
 ╚════════════════════════════════════════════╝
     `);
 });
