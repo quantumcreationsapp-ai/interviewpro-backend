@@ -51,11 +51,11 @@ app.set('trust proxy', 1);
 
 app.use(helmet());
 
-// CORS configuration — reject unknown origins by default in production
+// CORS configuration
 const corsOptions = {
     origin: process.env.ALLOWED_ORIGINS
-        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(o => o.length > 0)
-        : (process.env.NODE_ENV === 'production' ? false : true),
+        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+        : true,
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'X-API-Key'],
     maxAge: 86400
