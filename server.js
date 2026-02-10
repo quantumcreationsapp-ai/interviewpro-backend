@@ -79,6 +79,23 @@ if (apiSecret) {
     });
 }
 
+// ============================================
+// HEALTH CHECK (must be BEFORE rate limiter so Render checks aren't blocked)
+// ============================================
+
+app.get('/', (req, res) => {
+    res.json({
+        status: 'ok',
+        message: 'InterviewPro AI API is running',
+        version: '2.1.0',
+        poweredBy: 'OpenAI GPT-4 + TTS'
+    });
+});
+
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
 // Rate limiting
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -120,24 +137,6 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} | ${req.method} ${req.path}`);
     next();
-});
-
-// ============================================
-// HEALTH CHECK
-// ============================================
-
-app.get('/', (req, res) => {
-    res.json({
-        status: 'ok',
-        message: 'InterviewPro AI API is running',
-        version: '2.1.0',
-        poweredBy: 'OpenAI GPT-4 + TTS'
-    });
-});
-
-// Render health check endpoint
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok' });
 });
 
 // ============================================
