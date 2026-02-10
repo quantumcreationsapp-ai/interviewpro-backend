@@ -51,11 +51,11 @@ app.set('trust proxy', 1);
 
 app.use(helmet());
 
-// CORS configuration
+// CORS configuration — reject unknown origins by default in production
 const corsOptions = {
     origin: process.env.ALLOWED_ORIGINS
-        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-        : true,
+        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(o => o.length > 0)
+        : (process.env.NODE_ENV === 'production' ? false : true),
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'X-API-Key'],
     maxAge: 86400
@@ -190,7 +190,7 @@ async function generateInlineTTS(text, voice) {
 
     const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
     const selectedVoice = validVoices.includes(voice) ? voice : 'nova';
-    const truncated = text.length > 4096 ? text.substring(0, 4096) : text;
+    const truncated = text.length > 1000 ? text.substring(0, 1000) : text;
 
     try {
         const mp3Response = await openai.audio.speech.create({
@@ -477,12 +477,15 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
         const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
         const selectedVoice = validVoices.includes(voice) ? voice : 'nova';
 
-        console.log(`TTS: ${text.length} chars, voice: ${selectedVoice}`);
+        // Cap text to prevent large audio buffers that can OOM the server
+        const ttsText = text.length > 1000 ? text.substring(0, 1000) : text;
+
+        console.log(`TTS: ${ttsText.length} chars (original: ${text.length}), voice: ${selectedVoice}`);
 
         const mp3Response = await openai.audio.speech.create({
             model: 'tts-1',
             voice: selectedVoice,
-            input: text,
+            input: ttsText,
             response_format: 'mp3',
             speed: 1.0
         });
@@ -568,3 +571,13 @@ function shutdown(signal) {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Prevent silent crashes — log and keep running
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION (keeping server alive):', err.message);
+    console.error(err.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('UNHANDLED REJECTION (keeping server alive):', reason);
+});
