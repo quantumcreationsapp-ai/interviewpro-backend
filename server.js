@@ -39,7 +39,9 @@ if (!process.env.OPENAI_API_KEY) {
 // ============================================
 
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+    apiKey: process.env.OPENAI_API_KEY,
+    timeout: 30000,        // 30 second timeout for all API calls
+    maxRetries: 1          // 1 automatic retry on transient errors
 });
 
 // ============================================
@@ -145,6 +147,12 @@ app.use((req, res, next) => {
 
 function validateString(value, maxLength = 500) {
     return typeof value === 'string' && value.trim().length > 0 && value.length <= maxLength;
+}
+
+/** Strip newlines and control characters from user input to prevent prompt injection */
+function sanitizeInput(value) {
+    if (typeof value !== 'string') return '';
+    return value.replace(/[\n\r\t]/g, ' ').trim();
 }
 
 function validateMessages(messages) {
@@ -258,14 +266,22 @@ const MOCK_INTERVIEW_PROMPT = `You are a friendly AI interview coach having a pr
 
 Keep your responses conversational and helpful. Be warm and supportive - this is practice, not a real interview.`;
 
-const QUICK_ANSWER_PROMPT = `You are an expert interview coach. Provide a comprehensive, well-structured answer to the interview question. Include:
+const QUICK_ANSWER_PROMPT = `You are an expert interview coach. Write a SAMPLE ANSWER that the user can memorize and say out loud in an interview.
 
-1. A strong opening statement
-2. Specific examples or frameworks to use
-3. Key points to emphasize
-4. Tips for delivery
+CRITICAL RULES:
+- Write the answer in FIRST PERSON ("I", "my experience", "my role")
+- Write in natural, spoken English — as if actually speaking to an interviewer
+- Length: 150-250 words (about 60-120 seconds when spoken)
+- Tone: confident, professional, conversational (NOT robotic or scripted)
+- Do NOT include headings, bullet points, numbered lists, or bold text
+- Do NOT include coaching tips, STAR explanations, or interview theory
+- Do NOT use meta language like "When answering this question..." or "You should..."
+- Do NOT include labels like "Opening Statement:", "Body:", "Conclusion:"
+- Just write the answer as continuous paragraphs, ready to speak
 
-Keep the answer practical and actionable.`;
+After the sample answer, add a blank line then:
+---
+Customize this answer: Replace [Your Company] with the company name, [X years] with your experience, and [your key achievement] with a specific accomplishment from your background.`;
 
 // ============================================
 // INTERVIEW ENDPOINTS (Using GPT-4)
@@ -282,13 +298,19 @@ app.post('/api/real-interview', aiLimiter, async (req, res) => {
             return res.status(400).json({ error: 'A valid job title is required' });
         }
 
+        // Sanitize all user-supplied fields embedded in prompts
+        const safeJobTitle = sanitizeInput(jobTitle);
+        const safeIndustry = sanitizeInput(industry) || 'General';
+        const safeExperience = sanitizeInput(experienceLevel) || 'Mid-level';
+        const safeInterviewType = sanitizeInput(interviewType) || 'Behavioral and Technical';
+
         const systemPrompt = `${REAL_INTERVIEW_PROMPT}
 
 Context:
-- Job Title: ${jobTitle}
-- Industry: ${industry || 'General'}
-- Experience Level: ${experienceLevel || 'Mid-level'}
-- Interview Type: ${interviewType || 'Behavioral and Technical'}`;
+- Job Title: ${safeJobTitle}
+- Industry: ${safeIndustry}
+- Experience Level: ${safeExperience}
+- Interview Type: ${safeInterviewType}`;
 
         // Convert messages to OpenAI format
         const openaiMessages = [
@@ -358,12 +380,17 @@ app.post('/api/mock-interview', aiLimiter, async (req, res) => {
             return res.status(400).json({ error: 'Valid messages array is required' });
         }
 
+        // Sanitize all user-supplied fields embedded in prompts
+        const safeJobTitle = sanitizeInput(jobTitle);
+        const safeIndustry = sanitizeInput(industry) || 'General';
+        const safeExperience = sanitizeInput(experienceLevel) || 'Mid-level';
+
         const systemPrompt = `${MOCK_INTERVIEW_PROMPT}
 
 Context:
-- Job Title: ${jobTitle}
-- Industry: ${industry || 'General'}
-- Experience Level: ${experienceLevel || 'Mid-level'}`;
+- Job Title: ${safeJobTitle}
+- Industry: ${safeIndustry}
+- Experience Level: ${safeExperience}`;
 
         const openaiMessages = [
             { role: 'system', content: systemPrompt },
@@ -414,17 +441,22 @@ app.post('/api/quick-answer', aiLimiter, async (req, res) => {
             return res.status(400).json({ error: 'A valid question is required (max 2000 characters)' });
         }
 
+        // Sanitize all user-supplied fields embedded in prompts
+        const safeJobTitle = sanitizeInput(jobTitle) || 'Professional';
+        const safeIndustry = sanitizeInput(industry) || 'General';
+        const safeQuestion = sanitizeInput(question);
+
         const systemPrompt = `${QUICK_ANSWER_PROMPT}
 
 Context:
-- Job Title: ${jobTitle || 'Professional'}
-- Industry: ${industry || 'General'}`;
+- Job Title: ${safeJobTitle}
+- Industry: ${safeIndustry}`;
 
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: [
                 { role: 'system', content: systemPrompt },
-                { role: 'user', content: `How should I answer this interview question: "${question}"` }
+                { role: 'user', content: `How should I answer this interview question: "${safeQuestion}"` }
             ],
             max_tokens: 1024,
             temperature: 0.7
@@ -474,7 +506,10 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
         }
 
         const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
-        const selectedVoice = validVoices.includes(voice) ? voice : 'nova';
+        if (!validVoices.includes(voice)) {
+            return res.status(400).json({ error: 'Invalid voice. Valid options: ' + validVoices.join(', ') });
+        }
+        const selectedVoice = voice;
 
         // Cap text to prevent large audio buffers that can OOM the server
         const ttsText = text.length > 1000 ? text.substring(0, 1000) : text;
@@ -493,6 +528,12 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
 
         if (!audioBuffer.length) {
             return res.status(502).json({ error: 'TTS returned empty audio. Please try again.' });
+        }
+
+        // Guard against unexpectedly large audio that could exhaust memory
+        if (audioBuffer.length > 5 * 1024 * 1024) {
+            console.error(`TTS: Audio too large (${audioBuffer.length} bytes), rejecting`);
+            return res.status(502).json({ error: 'Generated audio too large. Please try shorter text.' });
         }
 
         console.log(`TTS Response: ${audioBuffer.length} bytes`);
@@ -571,12 +612,18 @@ function shutdown(signal) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
+// Sanitize error messages to prevent API key leakage in logs
+function sanitizeError(msg) {
+    if (typeof msg !== 'string') return String(msg);
+    return msg.replace(/sk-[a-zA-Z0-9_-]+/g, '[REDACTED]');
+}
+
 // Prevent silent crashes — log and keep running
 process.on('uncaughtException', (err) => {
-    console.error('UNCAUGHT EXCEPTION (keeping server alive):', err.message);
-    console.error(err.stack);
+    console.error('UNCAUGHT EXCEPTION (keeping server alive):', sanitizeError(err.message));
+    console.error(sanitizeError(err.stack || ''));
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('UNHANDLED REJECTION (keeping server alive):', reason);
+    console.error('UNHANDLED REJECTION (keeping server alive):', sanitizeError(String(reason)));
 });

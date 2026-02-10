@@ -1,6 +1,6 @@
 {
   "name": "interviewpro-backend",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Backend API for InterviewPro AI - 100% powered by OpenAI (GPT-4 + TTS)",
   "main": "server.js",
   "scripts": {
