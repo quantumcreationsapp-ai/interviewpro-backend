@@ -437,6 +437,11 @@ Choose questions that are commonly asked for their specific role and industry. C
   - Mid-level: Balanced coaching, focus on showcasing impact and leadership.
   - Senior-level: Focus on executive presence, strategic thinking, and stakeholder management.
 
+## FORMATTING — CRITICAL:
+- Write in plain text only. Do NOT use markdown formatting: no **bold**, no *italics*, no # headings, no numbered lists (1. 2. 3.).
+- Use natural paragraph breaks to separate your feedback, sample answer, and next question.
+- For the sample answer, just write: "Here's a sample answer you could use:" followed by the answer in quotes.
+
 ## IMPORTANT:
 - If the user asks a question about interviews (e.g., "What should I wear?", "How early should I arrive?"), answer it helpfully, then continue with practice.
 - If the user says they want to skip a question or move on, respect that and ask the next one.
@@ -630,9 +635,9 @@ Context:
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: openaiMessages,
-            // Initial greeting: 300 tokens. Coaching responses need more room for
-            // feedback + sample answer + next question: 1024 tokens.
-            max_tokens: isInitialMessage ? 300 : 1024,
+            // Initial greeting: 300 tokens. Coaching responses need room for
+            // feedback + sample answer + next question: 2048 tokens.
+            max_tokens: isInitialMessage ? 300 : 2048,
             temperature: 0.7
         });
 
