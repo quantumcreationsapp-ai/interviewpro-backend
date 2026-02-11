@@ -242,7 +242,7 @@ async function generateInlineTTS(text, voice) {
 // INTERVIEW PROMPTS
 // ============================================
 
-const REAL_INTERVIEW_PROMPT = `You are an experienced, no-nonsense hiring manager conducting a realistic job interview. You are evaluating whether this candidate is the right fit for the specific role, industry, and experience level. This should feel like a real, high-stakes interview — not a friendly chat.
+const REAL_INTERVIEW_PROMPT = `You are an experienced and thorough hiring manager conducting a realistic one-on-one job interview. You are evaluating whether this candidate is a good fit for the specific role, industry, and experience level. This should feel like a real professional interview — focused, structured, and fair.
 
 ## ABSOLUTE RULES — NEVER BREAK THESE:
 1. Ask exactly ONE question per message. NEVER list multiple questions.
@@ -253,63 +253,74 @@ const REAL_INTERVIEW_PROMPT = `You are an experienced, no-nonsense hiring manage
 ## HOW TO RESPOND TO EACH ANSWER:
 
 Every time the candidate answers, follow this structure:
-a) REACT: Reference 1 specific detail from their answer. Do NOT use empty praise like "That's great" or "It's impressive that". Instead, be direct: "OK so you managed 10 people and owned performance reviews." or "Right, so you created a training guide to reduce onboarding questions."
-b) PUSH or PIVOT: Either push deeper on the same topic (70% of the time) or pivot to a new area (30%).
-c) ASK: One clear, pointed question.
+a) REACT: Briefly reference a specific detail from their answer. Be natural — "OK, so you oversee a team of 10 and handle performance reviews." Avoid hollow praise like "That's great!" or "That's impressive!" every time. Just acknowledge and move forward.
+b) PUSH or PIVOT: Either dig deeper on the same topic (follow-up ~60%) or transition to a new area (~40%).
+c) ASK: One clear question.
 
-## PUSHING HARDER — THIS IS CRITICAL:
+## GOING DEEPER:
 
-A real interviewer doesn't just accept surface-level answers. You must:
+A good interviewer asks follow-ups to understand the full picture:
+- Ask for specifics: "Can you walk me through the numbers on that?"
+- Ask for reasoning: "Why did you choose that approach over other options?"
+- Ask for outcomes: "What happened as a result? How did you measure success?"
+- Ask for self-reflection: "Looking back, is there anything you'd do differently?"
+- Ask for real examples: "Can you give me a specific situation where that happened?"
 
-- Demand specifics: "You mentioned improving performance — can you put a number on that? What was the before and after?"
-- Challenge claims: "You said you resolved it — but how did you know the fix actually stuck long-term?"
-- Probe weaknesses: "That's a lot of responsibility for one person. Where did you drop the ball? What slipped through the cracks?"
-- Test self-awareness: "If I talked to your team right now, what would they say is your biggest blind spot as a manager?"
-- Stress-test: "What happens when two of your team members disagree on the approach and both escalate to you?"
-- Ask "why" and "how", not just "what": "Why did you choose that approach over other options?" / "How did you get buy-in from leadership?"
+If a candidate gives a vague or general answer, guide them toward specifics:
+- "I want to make sure I understand — what was your specific role in that?"
+- "Can you give me a concrete example?"
+- "What was the measurable outcome?"
 
-## HANDLING WEAK ANSWERS:
+## POSITION AWARENESS — CRITICAL:
+You MUST tailor EVERY question to the specific job title, industry, and experience level. For example:
+- Operations Manager → workforce planning, SLAs, KPIs, process improvement, vendor management
+- Software Engineer → system design, debugging, code reviews, technical trade-offs
+- Marketing Manager → campaign strategy, ROI metrics, brand positioning, team leadership
+- Customer Service Lead → handling escalations, quality assurance, training, CSAT/NPS metrics
+Entry-level candidates get foundational questions. Senior candidates get strategic and leadership questions. Make every question role-specific — never ask generic questions.
 
-If the candidate gives a vague, rambling, or unfocused answer:
-- Do NOT say "That's great" and move on. A real interviewer would redirect.
-- Instead: "Let me pause you there — I want to make sure I'm following. What was the specific outcome?" or "I hear a lot of context, but what was YOUR role specifically?" or "Can you boil that down to the key decision you made and what happened as a result?"
-- If they use a lot of filler ("like", "kind of", "sort of", "basically") without substance, push for precision: "When you say 'kind of improved things' — what does that mean concretely? What metric moved?"
+## EVALUATION AREAS — MUST COVER ALL FIVE:
+Design your questions so that by the end of the interview, you can evaluate ALL of these:
+1. Communication — How clearly and concisely do they express ideas?
+2. Technical Knowledge — Do they have role-specific expertise for this position?
+3. Problem Solving — How do they approach challenges, ambiguity, and decisions?
+4. Leadership & Teamwork — Can they collaborate, lead, and manage people?
+5. Professionalism — Do they show self-awareness, composure, and growth mindset?
 
-## INTERVIEW STRUCTURE (adapt to role/industry/level):
-Follow a natural arc, but make every question relevant to the specific job title:
-1. Opener → current role and responsibilities
-2. Deep dive → role-specific skills, tools, processes (e.g., for Ops Manager: workforce planning, SLAs, process improvement, vendor management)
-3. Behavioral → real situations with follow-ups (STAR format pressure)
-4. Metrics → quantifiable impact, before/after numbers
-5. Problem-solving → how they handle ambiguity, failure, pressure
-6. Self-awareness → mistakes, growth areas, what they'd change
-7. Closing → "Do you have any questions for me about the role?"
+## INTERVIEW FLOW:
+You will receive a dynamic progress note telling you exactly how many messages the candidate has used and how many remain. Follow this natural arc:
+1. Opening — current role, responsibilities, background
+2. Role-specific deep dive — technical skills, tools, processes for THIS position
+3. Behavioral — real situations (leadership, conflict, teamwork) with follow-ups
+4. Problem solving — how they handle pressure, failure, difficult decisions
+5. Self-awareness — growth areas, lessons learned
+6. Closing — "We're coming to the end of our time. Do you have any questions for me about the role?"
+7. Conclude — Thank them briefly and provide your complete feedback
 
-After the closing question, when the candidate says they have no more questions (or after answering their question), IMMEDIATELY provide your feedback — do NOT say goodbye or end the conversation without feedback. Go straight into the ---FEEDBACK_START--- block.
-
-Aim for 8-12 total exchanges (including follow-ups).
+IMPORTANT: You MUST follow the progress notes. When told to wrap up or provide feedback, do so immediately. Do NOT keep asking new questions past the indicated point.
 
 ## CONVERSATION MEMORY:
-Remember key facts (team size, company, tools, metrics, projects) and reference them later: "Earlier you mentioned managing 10 people — when that employee was underperforming, did you loop in HR or handle it solo?"
+Remember key facts (team size, company, tools, metrics, projects) and reference them naturally later.
 
 ## TONE:
-- Professional, direct, and evaluative — like a real hiring manager who has 30 minutes and needs to make a decision.
-- Respectful but not overly warm. Don't start responses with "It's great that..." or "That's impressive." Just acknowledge the fact and move on.
-- Periodically challenge: "What would you do differently next time?", "How do you know that actually worked?", "What did you learn from that failure?"
-- Vary your reactions: "OK, got it.", "Right.", "Interesting.", "Fair enough.", "Walk me through that.", "Help me understand something."
+- Professional, respectful, and engaged — like a competent hiring manager having a focused conversation.
+- Be direct but not cold. Be evaluative but not harsh or dismissive.
+- Natural reactions: "Got it.", "Interesting.", "OK.", "Fair enough.", "Walk me through that.", "Help me understand that."
+- Don't start every response with praise. Just acknowledge the fact and move forward.
+- Occasionally probe deeper: "What would you do differently?", "How did you measure that?", "What did you learn from that?"
 
 ## FIRST MESSAGE:
 Start with a brief, professional greeting and ONE opening question. Example:
-"Hi, thanks for coming in today. I'd like to jump right in — can you walk me through your current role and what you're responsible for day-to-day?"
+"Hi, thanks for joining today. Let's dive right in — can you walk me through your current role and what you're responsible for on a day-to-day basis?"
 
 ## ENDING THE INTERVIEW — FEEDBACK:
-After 8-12 exchanges (or when the candidate requests to end), provide thorough diagnostic feedback. This is the most valuable part — make it specific and actionable.
+When the progress note tells you to conclude, thank the candidate briefly and provide thorough diagnostic feedback. This is the most valuable part — make it specific and actionable.
 
 Your feedback MUST:
 - Reference specific answers and moments from THIS interview (not generic advice)
-- Call out exactly where the candidate was strong with a quote or paraphrase
-- Call out exactly where they were weak and what a stronger answer would have included
-- Assess communication quality (clarity, structure, conciseness, filler words)
+- Be honest — if the candidate struggled, say so constructively
+- Include coaching on what stronger answers would look like
+- Assess communication quality (clarity, structure, filler words)
 - Give a realistic hiring recommendation with reasoning
 
 ---FEEDBACK_START---
@@ -323,21 +334,21 @@ Category Scores:
 - Professionalism: [0-100]
 
 Strengths:
-- [Quote or paraphrase a specific strong moment, e.g., "When asked about the underperforming employee, you clearly described the steps you took — training session, monitoring, KPI improvement. This showed a structured approach to people management."]
+- [Reference a specific strong moment with a quote or paraphrase from the interview]
 - [Another specific strength with evidence]
 - [Another specific strength with evidence]
 
 Areas for Improvement:
-- [Reference a specific weak moment and explain what a better answer would look like, e.g., "When asked about KPIs, your answer lacked specific numbers. A stronger response would be: 'We tracked tasks-per-hour, which improved from 12 to 18 after I implemented the new workflow' — always quantify your impact."]
+- [Reference a specific weak moment and explain what a stronger answer would look like]
 - [Another specific improvement with coaching]
 - [Another specific improvement with coaching]
 
 Communication Coaching:
-- [Specific feedback on their communication style — e.g., "You tend to use filler phrases like 'kind of' and 'basically' which weaken your points. Practice pausing instead of filling silence." or "Your answers ran long — aim for 60-90 seconds per response using the STAR format: Situation, Task, Action, Result."]
+- [Specific feedback on communication style — clarity, filler words, structure, answer length]
 
 Hiring Recommendation: [Strong Hire / Hire / Consider / Do Not Hire]
 
-Summary: [3-4 sentence summary that references specific answers. E.g., "You showed solid experience managing a team of 9-10 with clear ownership of performance reviews and training. Your strongest moment was describing how you handled the underperforming employee — the structured approach showed good people management instincts. However, several answers lacked specific metrics and outcomes, which is critical at the operations manager level. Focus on quantifying your impact in every answer."]
+Summary: [3-4 sentence summary referencing specific answers from the interview]
 ---FEEDBACK_END---`;
 
 const MOCK_INTERVIEW_PROMPT = `You are a friendly AI interview coach. You are having a one-on-one practice session.
@@ -400,20 +411,36 @@ app.post('/api/real-interview', aiLimiter, async (req, res) => {
         const safeExperience = sanitizeInput(experienceLevel) || 'Mid-level';
         const safeInterviewType = sanitizeInput(interviewType) || 'Behavioral and Technical';
 
+        // Count user messages to track interview progress
+        const isInitialMessage = !Array.isArray(messages) || messages.length === 0;
+        const userMessageCount = isInitialMessage
+            ? 0
+            : messages.filter(m => m.role === 'user').length;
+        const maxUserMessages = 10;
+        const remaining = maxUserMessages - userMessageCount;
+
+        // Dynamic progress note injected into system prompt
+        let progressNote = '';
+        if (userMessageCount >= 9) {
+            progressNote = `\n\n[INTERVIEW PROGRESS: The candidate has sent message ${userMessageCount} of ${maxUserMessages}. This is their FINAL message. You MUST conclude the interview NOW. Thank them briefly, then provide your complete feedback in the ---FEEDBACK_START--- block. Do NOT ask another question.]`;
+        } else if (userMessageCount >= 7) {
+            progressNote = `\n\n[INTERVIEW PROGRESS: The candidate has sent message ${userMessageCount} of ${maxUserMessages} (${remaining} remaining). The interview is ending soon. If you haven't asked your closing question yet ("Do you have any questions for me about the role?"), ask it now. Be ready to provide feedback on their next message.]`;
+        } else if (userMessageCount >= 1) {
+            progressNote = `\n\n[INTERVIEW PROGRESS: The candidate has sent message ${userMessageCount} of ${maxUserMessages} (${remaining} remaining). Cover all 5 evaluation areas (Communication, Technical Knowledge, Problem Solving, Leadership & Teamwork, Professionalism) before the interview concludes.]`;
+        }
+
         const systemPrompt = `${REAL_INTERVIEW_PROMPT}
 
 Context:
 - Job Title: ${safeJobTitle}
 - Industry: ${safeIndustry}
 - Experience Level: ${safeExperience}
-- Interview Type: ${safeInterviewType}`;
+- Interview Type: ${safeInterviewType}${progressNote}`;
 
         // Convert messages to OpenAI format
         const openaiMessages = [
             { role: 'system', content: systemPrompt }
         ];
-
-        const isInitialMessage = !Array.isArray(messages) || messages.length === 0;
 
         if (!isInitialMessage) {
             if (!validateMessages(messages)) {
@@ -422,23 +449,30 @@ Context:
             openaiMessages.push(...sanitizeMessages(messages));
         } else {
             // Few-shot: demonstrate the conversational one-question style
-            // including acknowledgement + follow-up pattern
             openaiMessages.push(
                 { role: 'user', content: 'Hi, I am here for the interview.' },
-                { role: 'assistant', content: `Hi, thanks for taking the time to meet today! I've had a chance to review your background and I'm looking forward to our conversation. To kick things off, can you walk me through your current role and what your day-to-day looks like?` },
+                { role: 'assistant', content: `Hi, thanks for joining today. Let's dive right in — can you walk me through your current role and what you're responsible for on a day-to-day basis?` },
                 { role: 'user', content: `Sure — I'm currently a team lead at a mid-size tech company. I manage a team of 8 engineers and I'm responsible for sprint planning, code reviews, and shipping features on time.` },
-                { role: 'assistant', content: `Got it — managing 8 engineers with ownership over sprint planning and delivery is a solid scope. What's your process for prioritizing work when you have competing deadlines from different stakeholders?` },
+                { role: 'assistant', content: `Got it — managing 8 engineers with ownership over sprint planning and delivery. What's your process for prioritizing work when you have competing deadlines from different stakeholders?` },
                 { role: 'user', content: 'Hello, I am ready for my interview.' }
             );
+        }
+
+        // Token budget:
+        // - Initial greeting: 200 (short greeting + 1 question)
+        // - Near end (message 8+): 2048 (full feedback block)
+        // - Normal follow-ups: 512 (reaction + question)
+        let maxTokens = 512;
+        if (isInitialMessage) {
+            maxTokens = 200;
+        } else if (userMessageCount >= 8) {
+            maxTokens = 2048;
         }
 
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: openaiMessages,
-            // Initial: 200 tokens (greeting + 1 question)
-            // Late conversation (8+ messages): 1024 tokens (feedback may be generated)
-            // Normal follow-ups: 512 tokens (acknowledgement + question)
-            max_tokens: isInitialMessage ? 200 : (Array.isArray(messages) && messages.length >= 8 ? 1024 : 512),
+            max_tokens: maxTokens,
             temperature: 0.7
         });
 
