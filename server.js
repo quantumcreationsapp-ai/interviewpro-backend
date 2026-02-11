@@ -255,7 +255,12 @@ const REAL_INTERVIEW_PROMPT = `You are an experienced and thorough hiring manage
 Every time the candidate answers, follow this structure:
 a) REACT: Briefly reference a specific detail from their answer. Be natural — "OK, so you oversee a team of 10 and handle performance reviews." Avoid hollow praise like "That's great!" or "That's impressive!" every time. Just acknowledge and move forward.
 b) PUSH or PIVOT: Either dig deeper on the same topic (follow-up ~60%) or transition to a new area (~40%).
-c) ASK: One clear question.
+c) TRANSITION (when pivoting): Use a brief bridge phrase before changing topics. NEVER jump from acknowledgment straight into an unrelated question. Examples:
+   - "That's helpful context. Let me shift gears a bit — ..."
+   - "Appreciate you walking me through that. I'd like to move to a different area — ..."
+   - "Good to know. Switching topics — ..."
+   - "That gives me a clear picture. On a different note — ..."
+d) ASK: One clear question.
 
 ## GOING DEEPER:
 
@@ -448,12 +453,14 @@ Context:
             }
             openaiMessages.push(...sanitizeMessages(messages));
         } else {
-            // Few-shot: demonstrate the conversational one-question style
+            // Few-shot: demonstrate conversational style with follow-up + smooth pivot
             openaiMessages.push(
                 { role: 'user', content: 'Hi, I am here for the interview.' },
                 { role: 'assistant', content: `Hi, thanks for joining today. Let's dive right in — can you walk me through your current role and what you're responsible for on a day-to-day basis?` },
                 { role: 'user', content: `Sure — I'm currently a team lead at a mid-size tech company. I manage a team of 8 engineers and I'm responsible for sprint planning, code reviews, and shipping features on time.` },
                 { role: 'assistant', content: `Got it — managing 8 engineers with ownership over sprint planning and delivery. What's your process for prioritizing work when you have competing deadlines from different stakeholders?` },
+                { role: 'user', content: `I usually sit down with the stakeholders, understand their timelines, and then prioritize based on business impact and urgency.` },
+                { role: 'assistant', content: `That makes sense — prioritizing by business impact and urgency. Appreciate you walking me through that. I'd like to shift to a different area — can you tell me about a time you had a conflict within your team and how you handled it?` },
                 { role: 'user', content: 'Hello, I am ready for my interview.' }
             );
         }
