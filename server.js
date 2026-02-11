@@ -184,6 +184,25 @@ function safeContent(response) {
     return response?.choices?.[0]?.message?.content ?? '';
 }
 
+/**
+ * Safety net: if the AI returns multiple numbered questions in one response,
+ * truncate to only the first question. This prevents the AI from dumping
+ * all interview questions at once instead of asking one at a time.
+ */
+function enforceOneQuestion(text) {
+    // Check if response contains a numbered list pattern: "1." followed by "2."
+    const hasNumberedList = /(?:^|\n)\s*1[\.\)]\s/.test(text) && /\n\s*2[\.\)]\s/.test(text);
+    if (!hasNumberedList) return text;
+
+    // Find where the second numbered item starts and truncate before it
+    const match = text.match(/\n\s*2[\.\)]\s/);
+    if (match) {
+        console.log('enforceOneQuestion: Truncated multi-question response');
+        return text.substring(0, match.index).trim();
+    }
+    return text;
+}
+
 // ============================================
 // INLINE TTS HELPER
 // ============================================
@@ -223,14 +242,30 @@ async function generateInlineTTS(text, voice) {
 // INTERVIEW PROMPTS
 // ============================================
 
-const REAL_INTERVIEW_PROMPT = `You are a professional job interviewer conducting a formal interview. Your role is to:
+const REAL_INTERVIEW_PROMPT = `You are a professional job interviewer. You are conducting a realistic one-on-one interview.
 
-1. Ask relevant interview questions based on the job title, industry, and experience level
-2. Listen to responses and ask follow-up questions when appropriate
-3. Maintain a professional but friendly demeanor
-4. After 5-7 questions OR when the candidate requests to end, provide detailed feedback
+## ABSOLUTE RULES — NEVER BREAK THESE:
+1. You must ask exactly ONE question per message. NEVER include more than one question.
+2. NEVER number your questions. NEVER use lists of questions. NEVER say "Here are my questions".
+3. Wait for the candidate's response before asking the next question.
+4. Keep each message short — a brief comment (1-2 sentences) plus ONE question.
 
-IMPORTANT: When providing final feedback, wrap it in these exact markers:
+## INTERVIEW FLOW:
+- Your FIRST message: A short greeting (1 sentence) + your first interview question. Nothing else.
+- After each answer: Briefly acknowledge (1 sentence), then ask ONE new question.
+- Mix behavioral, technical, and situational questions appropriate for the role.
+- Ask follow-up questions if an answer is vague or interesting.
+- After 5-7 total questions OR when the candidate says they want to end: provide feedback.
+
+## EXAMPLE OF CORRECT FIRST MESSAGE:
+"Welcome! Thank you for joining us today. Let's get started — can you walk me through your experience managing cross-functional teams?"
+
+## EXAMPLE OF INCORRECT FIRST MESSAGE (NEVER DO THIS):
+"Here are your questions: 1. Tell me about... 2. How do you... 3. Describe a time..."
+
+## ENDING THE INTERVIEW:
+When done (5-7 questions asked OR candidate requests to end), provide feedback in this exact format:
+
 ---FEEDBACK_START---
 Overall Score: [0-100]
 
@@ -252,19 +287,29 @@ Areas for Improvement:
 Hiring Recommendation: [Strong Hire / Hire / Consider / Do Not Hire]
 
 Summary: [2-3 sentence summary]
----FEEDBACK_END---
+---FEEDBACK_END---`;
 
-Keep responses concise (2-3 paragraphs max). Be encouraging but honest.`;
+const MOCK_INTERVIEW_PROMPT = `You are a friendly AI interview coach. You are having a one-on-one practice session.
 
-const MOCK_INTERVIEW_PROMPT = `You are a friendly AI interview coach having a practice conversation. Your role is to:
+## ABSOLUTE RULES — NEVER BREAK THESE:
+1. You must ask exactly ONE question per message. NEVER include more than one question.
+2. NEVER number your questions. NEVER use lists of questions.
+3. Wait for the user's response before asking the next question.
+4. Keep each message short — a brief comment plus ONE question.
 
-1. Help the user practice answering interview questions
-2. Provide constructive feedback on their answers
-3. Suggest improvements and alternative approaches
-4. Answer their questions about interviewing
-5. Be supportive and encouraging
+## PRACTICE FLOW:
+- Your FIRST message: A warm greeting (1 sentence) + your first practice question. Nothing else.
+- After each answer: Brief feedback on what was good and what could improve (2-3 sentences), then ONE new question.
+- Be supportive, warm, and encouraging — this is practice, not a real interview.
+- Answer their questions about interviewing if they ask.
 
-Keep your responses conversational and helpful. Be warm and supportive - this is practice, not a real interview.`;
+## EXAMPLE OF CORRECT FIRST MESSAGE:
+"Hi there! Great to have you for practice today. Let's jump right in — tell me about yourself and your background."
+
+## EXAMPLE OF INCORRECT FIRST MESSAGE (NEVER DO THIS):
+"Here are some practice questions: 1. Tell me about... 2. Why do you... 3. Describe..."
+
+Keep responses concise and conversational.`;
 
 const QUICK_ANSWER_PROMPT = `You are an expert interview coach. Write a SAMPLE ANSWER that the user can memorize and say out loud in an interview.
 
@@ -317,31 +362,43 @@ Context:
             { role: 'system', content: systemPrompt }
         ];
 
-        if (Array.isArray(messages) && messages.length > 0) {
+        const isInitialMessage = !Array.isArray(messages) || messages.length === 0;
+
+        if (!isInitialMessage) {
             if (!validateMessages(messages)) {
                 return res.status(400).json({ error: 'Invalid messages format' });
             }
             openaiMessages.push(...sanitizeMessages(messages));
         } else {
-            openaiMessages.push({
-                role: 'user',
-                content: 'Please start the interview.'
-            });
+            // Few-shot example: show the model what a correct single-question
+            // response looks like, so it follows the same pattern
+            openaiMessages.push(
+                { role: 'user', content: 'Hi, I am here for the interview.' },
+                { role: 'assistant', content: `Welcome! Thank you for being here today. I've reviewed your background and I'm excited to learn more. Let's get started — can you walk me through your most recent role and your key responsibilities?` },
+                { role: 'user', content: 'Hello, I am ready for my interview.' }
+            );
         }
 
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: openaiMessages,
-            max_tokens: 1024,
+            // Limit initial response to ~200 tokens (enough for greeting + 1 question)
+            // Use full 1024 for subsequent messages and feedback
+            max_tokens: isInitialMessage ? 200 : 1024,
             temperature: 0.7
         });
 
-        const aiMessage = safeContent(response);
+        let aiMessage = safeContent(response);
         if (!aiMessage) {
             return res.status(502).json({ error: 'AI returned an empty response. Please try again.' });
         }
 
         const containsFeedback = aiMessage.includes('---FEEDBACK_START---');
+
+        // Safety net: strip multi-question responses (skip for feedback)
+        if (!containsFeedback) {
+            aiMessage = enforceOneQuestion(aiMessage);
+        }
 
         // Generate inline TTS if voice requested and not feedback
         const audioBase64 = (!containsFeedback && voice)
@@ -393,21 +450,36 @@ Context:
 - Experience Level: ${safeExperience}`;
 
         const openaiMessages = [
-            { role: 'system', content: systemPrompt },
-            ...sanitizeMessages(messages)
+            { role: 'system', content: systemPrompt }
         ];
+
+        const isInitialMessage = messages.length === 0;
+
+        if (!isInitialMessage) {
+            openaiMessages.push(...sanitizeMessages(messages));
+        } else {
+            // Few-shot example to enforce one-question-at-a-time
+            openaiMessages.push(
+                { role: 'user', content: 'Hi, I want to practice.' },
+                { role: 'assistant', content: `Great to have you here! Let's make this a productive session. To start things off — tell me about yourself and your professional background.` },
+                { role: 'user', content: 'Hi, I am ready to practice.' }
+            );
+        }
 
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: openaiMessages,
-            max_tokens: 1024,
+            max_tokens: isInitialMessage ? 200 : 1024,
             temperature: 0.7
         });
 
-        const aiMessage = safeContent(response);
+        let aiMessage = safeContent(response);
         if (!aiMessage) {
             return res.status(502).json({ error: 'AI returned an empty response. Please try again.' });
         }
+
+        // Safety net: strip multi-question responses
+        aiMessage = enforceOneQuestion(aiMessage);
 
         // Generate inline TTS if voice requested
         const audioBase64 = voice
